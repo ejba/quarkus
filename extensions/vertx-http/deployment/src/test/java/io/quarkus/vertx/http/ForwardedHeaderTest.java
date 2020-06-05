@@ -27,10 +27,10 @@ public class ForwardedHeaderTest {
         assertThat(RestAssured.get("/forward").asString()).startsWith("http|");
 
         RestAssured.given()
-                .header("Forwarded", "by=proxy;for=backend:4444;host=somehost;proto=https")
+                .header("Forwarded", "by=proxy;for=backend:4444;host=somehost;proto=https;prefix=prefix")
                 .get("/forward")
                 .then()
-                .body(Matchers.equalTo("https|somehost|backend:4444"));
+                .body(Matchers.equalTo("https|somehost|backend:4444|prefix/forward"));
     }
 
 }

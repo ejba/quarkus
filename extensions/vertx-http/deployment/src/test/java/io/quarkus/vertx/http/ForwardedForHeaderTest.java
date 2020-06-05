@@ -31,7 +31,48 @@ public class ForwardedForHeaderTest {
                 .header("X-Forwarded-Host", "somehost")
                 .get("/forward")
                 .then()
-                .body(Matchers.equalTo("https|somehost|backend:4444"));
+                .body(Matchers.equalTo("https|somehost|backend:4444|/forward"));
+    }
+
+    @Test
+    public void testWithPrefix() {
+        assertThat(RestAssured.get("/forward").asString()).startsWith("http|");
+
+        RestAssured.given()
+                .header("X-Forwarded-Proto", "https")
+                .header("X-Forwarded-For", "backend:4444")
+                .header("X-Forwarded-Host", "somehost")
+                .header("X-Forwarded-Prefix", "prefix")
+                .get("/forward")
+                .then()
+                .body(Matchers.equalTo("https|somehost|backend:4444|prefix/forward"));
+    }
+
+    @Test
+    public void testWithServer() {
+        assertThat(RestAssured.get("/forward").asString()).startsWith("http|");
+
+        RestAssured.given()
+                .header("X-Forwarded-Proto", "https")
+                .header("X-Forwarded-For", "backend:4444")
+                .header("X-Forwarded-Server", "server")
+                .get("/forward")
+                .then()
+                .body(Matchers.equalTo("https|server|backend:4444|/forward"));
+    }
+
+    @Test
+    public void testWithHostAndServer() {
+        assertThat(RestAssured.get("/forward").asString()).startsWith("http|");
+
+        RestAssured.given()
+                .header("X-Forwarded-Proto", "https")
+                .header("X-Forwarded-For", "backend:4444")
+                .header("X-Forwarded-Host", "somehost")
+                .header("X-Forwarded-Server", "server")
+                .get("/forward")
+                .then()
+                .body(Matchers.equalTo("https|somehost|backend:4444|/forward"));
     }
 
 }

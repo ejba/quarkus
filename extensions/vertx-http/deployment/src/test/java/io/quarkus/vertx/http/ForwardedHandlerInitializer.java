@@ -12,7 +12,8 @@ class ForwardedHandlerInitializer {
     public void register(@Observes Router router) {
         router.route("/forward").handler(rc -> rc.response()
                 .end(rc.request().scheme() + "|" + rc.request().getHeader(HttpHeaders.HOST) + "|"
-                        + rc.request().remoteAddress().toString()));
+                        + rc.request().remoteAddress().toString()
+                        + "|" + rc.request().uri()));
     }
 
 }

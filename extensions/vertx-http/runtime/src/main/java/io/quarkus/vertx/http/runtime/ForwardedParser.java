@@ -41,10 +41,13 @@ class ForwardedParser {
     private static final AsciiString X_FORWARDED_HOST = AsciiString.cached("X-Forwarded-Host");
     private static final AsciiString X_FORWARDED_PORT = AsciiString.cached("X-Forwarded-Port");
     private static final AsciiString X_FORWARDED_FOR = AsciiString.cached("X-Forwarded-For");
+    private static final AsciiString X_FORWARDED_PREFIX = AsciiString.cached("X-Forwarded-Prefix");
+    private static final AsciiString X_FORWARDED_SERVER = AsciiString.cached("X-Forwarded-Server");
 
     private static final Pattern FORWARDED_HOST_PATTERN = Pattern.compile("host=\"?([^;,\"]+)\"?");
     private static final Pattern FORWARDED_PROTO_PATTERN = Pattern.compile("proto=\"?([^;,\"]+)\"?");
     private static final Pattern FORWARDED_FOR_PATTERN = Pattern.compile("for=\"?([^;,\"]+)\"?");
+    private static final Pattern FORWARDED_PREFIX_PATTERN = Pattern.compile("prefix=\"?([^;,\"]+)\"?");
 
     private final HttpServerRequest delegate;
     private final boolean allowForward;
@@ -53,6 +56,7 @@ class ForwardedParser {
     private String host;
     private int port = -1;
     private String scheme;
+    private String uri;
     private String absoluteURI;
     private SocketAddress remoteAddress;
 
@@ -80,6 +84,13 @@ class ForwardedParser {
         return scheme.equals(HTTPS_SCHEME);
     }
 
+    String uri() {
+        if (!calculated)
+            calculate();
+
+        return uri;
+    }
+
     String absoluteURI() {
         if (!calculated)
             calculate();
@@ -98,6 +109,7 @@ class ForwardedParser {
         calculated = true;
         remoteAddress = delegate.remoteAddress();
         scheme = delegate.scheme();
+        uri = delegate.uri();
         setHostAndPort(delegate.host(), port);
 
         String forwardedSsl = delegate.getHeader(X_FORWARDED_SSL);
@@ -124,6 +136,11 @@ class ForwardedParser {
             if (matcher.find()) {
                 remoteAddress = parseFor(matcher.group(1).trim(), remoteAddress.port());
             }
+
+            matcher = FORWARDED_PREFIX_PATTERN.matcher(forwardedToUse);
+            if (matcher.find()) {
+                uri = appendPrefixToUri(matcher.group(1).trim(), delegate.uri());
+            }
         } else if (!allowForward) {
             String protocolHeader = delegate.getHeader(X_FORWARDED_PROTO);
             if (protocolHeader != null) {
@@ -137,6 +154,11 @@ class ForwardedParser {
             String hostHeader = delegate.getHeader(X_FORWARDED_HOST);
             if (hostHeader != null) {
                 setHostAndPort(hostHeader.split(",")[0], port);
+            } else {
+                String serverHeader = delegate.getHeader(X_FORWARDED_SERVER);
+                if (serverHeader != null) {
+                    setHostAndPort(serverHeader.split(",")[0], port);
+                }
             }
 
             String portHeader = delegate.getHeader(X_FORWARDED_PORT);
@@ -148,6 +170,11 @@ class ForwardedParser {
             if (forHeader != null) {
                 remoteAddress = parseFor(forHeader.split(",")[0], remoteAddress.port());
             }
+
+            String prefixHeader = delegate.getHeader(X_FORWARDED_PREFIX);
+            if (prefixHeader != null) {
+                uri = appendPrefixToUri(prefixHeader, uri);
+            }
         }
 
         if (((scheme.equals(HTTP_SCHEME) && port == 80) || (scheme.equals(HTTPS_SCHEME) && port == 443))) {
@@ -156,7 +183,8 @@ class ForwardedParser {
 
         host = host + (port >= 0 ? ":" + port : "");
         delegate.headers().set(HttpHeaders.HOST, host);
-        absoluteURI = scheme + "://" + host + delegate.uri();
+        absoluteURI = scheme + "://" + host + uri;
+        log.debug("Recalculated absoluteURI to " + absoluteURI);
     }
 
     private void setHostAndPort(String hostToParse, int defaultPort) {
@@ -189,6 +217,18 @@ class ForwardedParser {
         } catch (NumberFormatException ignored) {
             log.error("Failed to parse a port from \"forwarded\"-type headers.");
             return defaultPort;
+        }
+    }
+
+    private String appendPrefixToUri(String prefix, String uri) {
+        return stripTailingSlash(prefix) + uri;
+    }
+
+    private String stripTailingSlash(String url) {
+        if (url.endsWith("/")) {
+            return url.substring(0, url.length() - 1);
+        } else {
+            return url;
         }
     }
 }
