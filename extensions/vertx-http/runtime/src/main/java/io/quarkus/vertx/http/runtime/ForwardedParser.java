@@ -51,6 +51,7 @@ class ForwardedParser {
 
     private final HttpServerRequest delegate;
     private final boolean allowForward;
+    private final HttpConfiguration.ForwardedHostHeader forwardedHostHeader;
 
     private boolean calculated;
     private String host;
@@ -60,9 +61,11 @@ class ForwardedParser {
     private String absoluteURI;
     private SocketAddress remoteAddress;
 
-    ForwardedParser(HttpServerRequest delegate, boolean allowForward) {
+    ForwardedParser(HttpServerRequest delegate, boolean allowForward,
+            HttpConfiguration.ForwardedHostHeader forwardedHostHeader) {
         this.delegate = delegate;
         this.allowForward = allowForward;
+        this.forwardedHostHeader = forwardedHostHeader;
     }
 
     public String scheme() {
@@ -151,14 +154,20 @@ class ForwardedParser {
                 port = -1;
             }
 
-            String hostHeader = delegate.getHeader(X_FORWARDED_HOST);
+            String hostHeader;
+            switch (forwardedHostHeader) {
+                case X_FORWARDED_SERVER: {
+                    hostHeader = delegate.getHeader(X_FORWARDED_SERVER);
+                    break;
+                }
+                case X_FORWARDED_HOST:
+                default: {
+                    hostHeader = delegate.getHeader(X_FORWARDED_HOST);
+                    break;
+                }
+            }
             if (hostHeader != null) {
                 setHostAndPort(hostHeader.split(",")[0], port);
-            } else {
-                String serverHeader = delegate.getHeader(X_FORWARDED_SERVER);
-                if (serverHeader != null) {
-                    setHostAndPort(serverHeader.split(",")[0], port);
-                }
             }
 
             String portHeader = delegate.getHeader(X_FORWARDED_PORT);

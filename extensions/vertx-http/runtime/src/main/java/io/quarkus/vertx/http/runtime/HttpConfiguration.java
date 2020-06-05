@@ -71,6 +71,12 @@ public class HttpConfiguration {
     public boolean allowForwarded;
 
     /**
+     * The header that is used to read the proxy server host from. Proxy address forwarding must also be enabled.
+     */
+    @ConfigItem(defaultValue = "X_FORWARDED_HOST")
+    public ForwardedHostHeader forwardedHostHeader;
+
+    /**
      * If insecure (i.e. http rather than https) requests are allowed. If this is {@code enabled}
      * then http works as normal. {@code redirect} will still open the http port, but
      * all requests will be redirected to the HTTPS port. {@code disabled} will prevent the HTTP
@@ -209,5 +215,10 @@ public class HttpConfiguration {
         ENABLED,
         REDIRECT,
         DISABLED;
+    }
+
+    public enum ForwardedHostHeader {
+        X_FORWARDED_HOST,
+        X_FORWARDED_SERVER
     }
 }

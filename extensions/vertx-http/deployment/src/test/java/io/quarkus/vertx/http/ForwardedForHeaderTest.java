@@ -49,19 +49,6 @@ public class ForwardedForHeaderTest {
     }
 
     @Test
-    public void testWithServer() {
-        assertThat(RestAssured.get("/forward").asString()).startsWith("http|");
-
-        RestAssured.given()
-                .header("X-Forwarded-Proto", "https")
-                .header("X-Forwarded-For", "backend:4444")
-                .header("X-Forwarded-Server", "server")
-                .get("/forward")
-                .then()
-                .body(Matchers.equalTo("https|server|backend:4444|/forward"));
-    }
-
-    @Test
     public void testWithHostAndServer() {
         assertThat(RestAssured.get("/forward").asString()).startsWith("http|");
 
