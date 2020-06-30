@@ -6,6 +6,9 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermission;
+import java.util.HashSet;
+import java.util.Set;
 
 import io.quarkus.deployment.pkg.builditem.OutputTargetBuildItem;
 
@@ -50,6 +53,17 @@ public class LambdaUtil {
         Files.write(artifact, output.getBytes(StandardCharsets.UTF_8));
     }
 
+    public static void writeExecutableFile(OutputTargetBuildItem target, String name, String output) throws IOException {
+        writeFile(target, name, output);
+
+        Path artifact = target.getOutputDirectory().resolve(name);
+        Set<PosixFilePermission> permissions = new HashSet<>();
+        permissions.add(PosixFilePermission.OWNER_READ);
+        permissions.add(PosixFilePermission.OWNER_WRITE);
+        permissions.add(PosixFilePermission.OWNER_EXECUTE);
+        Files.setPosixFilePermissions(artifact, permissions);
+    }
+
     public static String copyResource(String resource) throws Exception {
         try (InputStream inputStream = Thread.currentThread().getContextClassLoader().getResourceAsStream(resource)) {
 
@@ -76,7 +90,7 @@ public class LambdaUtil {
         output = copyResource("lambda/manage.sh")
                 .replace("${handler}", handler)
                 .replace("${lambdaName}", lambdaName);
-        writeFile(target, "manage.sh", output);
+        writeExecutableFile(target, "manage.sh", output);
 
         output = copyResource("lambda/sam.jvm.yaml")
                 .replace("${handler}", handler)
